@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stop monitoring
   app.post("/api/monitor/stop", async (req, res) => {
     try {
-      monitorService.stopMonitoring();
+      await monitorService.stopMonitoring();
       res.json({ success: true, message: "监控服务已停止" });
     } catch (error) {
       res.status(500).json({ error: "停止监控失败" });
@@ -147,6 +147,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(notifications);
     } catch (error) {
       res.status(500).json({ error: "获取通知历史失败" });
+    }
+  });
+
+  // Test WeChat webhook
+  app.post("/api/wechat/test", async (req, res) => {
+    try {
+      const config = await storage.getConfiguration();
+      if (!config?.webhookUrl) {
+        return res.status(400).json({ error: "企业微信 Webhook URL 未配置" });
+      }
+
+      const { WeChatService } = await import("./services/wechat");
+      const wechatService = new WeChatService(config.webhookUrl);
+      
+      const success = await wechatService.sendTextMessage("AList 存储监控系统测试消息");
+      
+      if (success) {
+        res.json({ success: true, message: "企业微信测试消息发送成功" });
+      } else {
+        res.status(500).json({ error: "企业微信测试消息发送失败" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "测试企业微信连接失败" });
     }
   });
 

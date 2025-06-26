@@ -9,13 +9,19 @@ export class MonitorService {
 
   async startMonitoring(): Promise<void> {
     const config = await storage.getConfiguration();
-    if (!config || !config.isActive) {
-      throw new Error('监控配置未找到或未激活');
+    if (!config) {
+      throw new Error('监控配置未找到，请先保存配置');
     }
 
     if (this.isRunning) {
       this.stopMonitoring();
     }
+
+    // Activate the configuration
+    await storage.saveConfiguration({
+      ...config,
+      isActive: true
+    });
 
     // Create cron expression for the interval
     const cronExpression = `*/${config.interval} * * * *`;
@@ -37,12 +43,30 @@ export class MonitorService {
     });
   }
 
-  stopMonitoring(): void {
+  async stopMonitoring(): Promise<void> {
     if (this.cronJob) {
       this.cronJob.destroy();
       this.cronJob = null;
     }
     this.isRunning = false;
+
+    // Deactivate the configuration
+    const config = await storage.getConfiguration();
+    if (config) {
+      await storage.saveConfiguration({
+        ...config,
+        isActive: false
+      });
+    }
+
+    // Create system notification
+    await storage.createNotification({
+      title: '监控服务停止',
+      message: 'AList 存储监控服务已停止',
+      type: 'info',
+      status: 'sent',
+      createdAt: new Date()
+    });
   }
 
   isMonitoringActive(): boolean {
