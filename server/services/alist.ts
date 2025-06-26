@@ -13,7 +13,10 @@ export interface AListStorage {
 export interface AListResponse {
   code: number;
   message: string;
-  data: AListStorage[];
+  data: {
+    content: AListStorage[];
+    total: number;
+  } | null;
 }
 
 export class AListService {
@@ -34,7 +37,7 @@ export class AListService {
     try {
       const response = await axios.get<AListResponse>(`${this.baseUrl}/api/admin/storage/list`, {
         headers: {
-          'Authorization': `Bearer ${this.token}`,
+          'Authorization': this.token,
           'Content-Type': 'application/json'
         },
         timeout: 10000
@@ -48,7 +51,7 @@ export class AListService {
         throw new Error(`AList API 错误 (${response.data.code}): ${response.data.message}`);
       }
 
-      return response.data.data || [];
+      return response.data.data?.content || [];
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {

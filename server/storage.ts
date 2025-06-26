@@ -5,6 +5,8 @@ import {
   type Storage, type InsertStorage,
   type Notification, type InsertNotification
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -24,135 +26,118 @@ export interface IStorage {
   updateNotificationStatus(id: number, status: string): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private configurations: Map<number, Configuration>;
-  private storages: Map<number, Storage>;
-  private notifications: Map<number, Notification>;
-  
-  private currentUserId: number;
-  private currentConfigId: number;
-  private currentStorageId: number;
-  private currentNotificationId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.configurations = new Map();
-    this.storages = new Map();
-    this.notifications = new Map();
-    
-    this.currentUserId = 1;
-    this.currentConfigId = 1;
-    this.currentStorageId = 1;
-    this.currentNotificationId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async getConfiguration(): Promise<Configuration | undefined> {
-    return Array.from(this.configurations.values())[0];
+    const [config] = await db.select().from(configurations).limit(1);
+    return config || undefined;
   }
 
   async saveConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
     const existing = await this.getConfiguration();
     if (existing) {
-      const updated: Configuration = { 
-        ...existing, 
-        ...insertConfig,
-        interval: insertConfig.interval ?? existing.interval,
-        isActive: insertConfig.isActive ?? existing.isActive
-      };
-      this.configurations.set(existing.id, updated);
+      const [updated] = await db
+        .update(configurations)
+        .set({
+          ...insertConfig,
+          interval: insertConfig.interval ?? existing.interval,
+          isActive: insertConfig.isActive ?? existing.isActive
+        })
+        .where(eq(configurations.id, existing.id))
+        .returning();
       return updated;
     } else {
-      const id = this.currentConfigId++;
-      const config: Configuration = { 
-        ...insertConfig, 
-        id,
-        interval: insertConfig.interval ?? 10,
-        isActive: insertConfig.isActive ?? false
-      };
-      this.configurations.set(id, config);
+      const [config] = await db
+        .insert(configurations)
+        .values({
+          ...insertConfig,
+          interval: insertConfig.interval ?? 10,
+          isActive: insertConfig.isActive ?? false
+        })
+        .returning();
       return config;
     }
   }
 
   async getStorages(): Promise<Storage[]> {
-    return Array.from(this.storages.values());
+    return await db.select().from(storages);
   }
 
   async getStorage(id: number): Promise<Storage | undefined> {
-    return this.storages.get(id);
+    const [storage] = await db.select().from(storages).where(eq(storages.id, id));
+    return storage || undefined;
   }
 
   async upsertStorage(insertStorage: InsertStorage): Promise<Storage> {
-    const existing = Array.from(this.storages.values()).find(
-      s => s.name === insertStorage.name && s.mountPath === insertStorage.mountPath
-    );
-    
+    const [existing] = await db
+      .select()
+      .from(storages)
+      .where(eq(storages.name, insertStorage.name));
+
     if (existing) {
-      const updated: Storage = { ...existing, ...insertStorage };
-      this.storages.set(existing.id, updated);
+      const [updated] = await db
+        .update(storages)
+        .set(insertStorage)
+        .where(eq(storages.id, existing.id))
+        .returning();
       return updated;
     } else {
-      const id = this.currentStorageId++;
-      const storage: Storage = { ...insertStorage, id };
-      this.storages.set(id, storage);
+      const [storage] = await db
+        .insert(storages)
+        .values(insertStorage)
+        .returning();
       return storage;
     }
   }
 
   async updateStorageStatus(id: number, status: string, lastCheck: Date): Promise<void> {
-    const storage = this.storages.get(id);
-    if (storage) {
-      storage.status = status;
-      storage.lastCheck = lastCheck;
-      this.storages.set(id, storage);
-    }
+    await db
+      .update(storages)
+      .set({ status, lastCheck })
+      .where(eq(storages.id, id));
   }
 
   async getNotifications(): Promise<Notification[]> {
-    return Array.from(this.notifications.values()).sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-    );
+    return await db
+      .select()
+      .from(notifications)
+      .orderBy(notifications.createdAt);
   }
 
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
-    const id = this.currentNotificationId++;
-    const notification: Notification = { 
-      id,
-      title: insertNotification.title,
-      message: insertNotification.message,
-      type: insertNotification.type,
-      status: insertNotification.status || 'pending',
-      createdAt: insertNotification.createdAt
-    };
-    this.notifications.set(id, notification);
+    const [notification] = await db
+      .insert(notifications)
+      .values({
+        ...insertNotification,
+        status: insertNotification.status || 'pending'
+      })
+      .returning();
     return notification;
   }
 
   async updateNotificationStatus(id: number, status: string): Promise<void> {
-    const notification = this.notifications.get(id);
-    if (notification) {
-      notification.status = status;
-      this.notifications.set(id, notification);
-    }
+    await db
+      .update(notifications)
+      .set({ status })
+      .where(eq(notifications.id, id));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
