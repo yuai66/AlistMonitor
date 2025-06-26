@@ -69,17 +69,23 @@ This is a full-stack web application for monitoring AList storage status with We
 
 ## Deployment Strategy
 
-### Environment Setup
+### Docker Deployment
+- **Production**: Docker Compose with PostgreSQL container
 - **Development**: `npm run dev` - starts both frontend and backend with hot reload
-- **Production Build**: `npm run build` - creates optimized production bundle
-- **Production Start**: `npm run start` - serves production application
+- **Build**: Multi-stage Docker build with optimized production bundle
+- **Services**: App container + PostgreSQL database container
 
-### Replit Configuration
+### Docker Configuration
+- **Base Image**: Node.js 20 Alpine Linux
+- **Ports**: App (5000), Database (5432)
+- **Volumes**: PostgreSQL data persistence
+- **Networks**: Internal Docker network for service communication
+- **Environment**: Production-optimized with environment variables
+
+### Replit Configuration (Legacy)
 - **Modules**: nodejs-20, web, postgresql-16
 - **Ports**: Internal port 5000, external port 80
-- **Build Command**: `npm run build`
-- **Start Command**: `npm run start`
-- **Auto-scaling**: Enabled for production deployment
+- **Note**: Project now supports both Replit and Docker deployment
 
 ### Database Management
 - **Migrations**: Drizzle Kit for schema management
@@ -95,6 +101,12 @@ Changelog:
   - Resolved database constraint errors by mapping mount_path to storage name
   - Successfully connected to user's AList server with 6 storage items detected
   - Migrated from MemStorage to DatabaseStorage for data persistence
+- June 26, 2025. Converted project to Docker deployment
+  - Created Dockerfile with Node.js 20 Alpine base image
+  - Added docker-compose.yml with PostgreSQL service
+  - Created Docker management scripts and environment configuration
+  - Added comprehensive Docker deployment documentation
+  - Supports both development and production Docker environments
 
 ## User Preferences
 
