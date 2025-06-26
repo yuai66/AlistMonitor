@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import { storage } from '../storage';
 import { AListService } from './alist';
 import { WeChatService } from './wechat';
@@ -22,8 +22,6 @@ export class MonitorService {
     
     this.cronJob = cron.schedule(cronExpression, async () => {
       await this.checkStorages();
-    }, {
-      scheduled: false
     });
 
     this.cronJob.start();
@@ -66,8 +64,11 @@ export class MonitorService {
 
       for (const alistStorage of storages) {
         // Update or create storage record
+        // Use mount_path as name since AList API doesn't provide a separate name field
+        const storageName = alistStorage.mount_path || `存储-${alistStorage.id}`;
+        
         await storage.upsertStorage({
-          name: alistStorage.name,
+          name: storageName,
           driver: alistStorage.driver,
           mountPath: alistStorage.mount_path,
           status: alistStorage.status,
@@ -78,7 +79,7 @@ export class MonitorService {
         if (alistStorage.status !== 'work' && alistStorage.status !== 'disabled') {
           const notification = await storage.createNotification({
             title: '存储状态异常警告',
-            message: `检测到存储 "${alistStorage.name}" 状态为 "${alistStorage.status}"，请及时检查。`,
+            message: `检测到存储 "${storageName}" 状态为 "${alistStorage.status}"，请及时检查。`,
             type: alistStorage.status === 'error' ? 'error' : 'warning',
             status: 'pending',
             createdAt: now
@@ -86,7 +87,7 @@ export class MonitorService {
 
           // Send WeChat notification
           try {
-            const message = `🚨 AList 存储状态异常\n\n存储名称：${alistStorage.name}\n存储类型：${alistStorage.driver}\n挂载路径：${alistStorage.mount_path}\n当前状态：${alistStorage.status}\n检查时间：${now.toLocaleString('zh-CN')}\n\n请及时检查并处理。`;
+            const message = `🚨 AList 存储状态异常\n\n存储名称：${storageName}\n存储类型：${alistStorage.driver}\n挂载路径：${alistStorage.mount_path}\n当前状态：${alistStorage.status}\n检查时间：${now.toLocaleString('zh-CN')}\n\n请及时检查并处理。`;
             
             await wechatService.sendTextMessage(message);
             await storage.updateNotificationStatus(notification.id, 'sent');

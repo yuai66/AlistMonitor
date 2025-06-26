@@ -89,7 +89,12 @@ This is a full-stack web application for monitoring AList storage status with We
 ## Changelog
 
 Changelog:
-- June 26, 2025. Initial setup
+- June 26, 2025. Initial setup with in-memory storage
+- June 26, 2025. Added PostgreSQL database support and fixed AList API integration
+  - Fixed AList authentication header format (removed incorrect Bearer prefix)
+  - Resolved database constraint errors by mapping mount_path to storage name
+  - Successfully connected to user's AList server with 6 storage items detected
+  - Migrated from MemStorage to DatabaseStorage for data persistence
 
 ## User Preferences
 
