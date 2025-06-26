@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,24 +43,26 @@ export function ConfigurationPanel() {
   const form = useForm<ConfigForm>({
     resolver: zodResolver(configSchema),
     defaultValues: {
-      alistUrl: config?.alistUrl || '',
-      alistToken: config?.alistToken || '',
-      webhookUrl: config?.webhookUrl || '',
-      interval: config?.interval || 10,
-      isActive: config?.isActive || false,
+      alistUrl: '',
+      alistToken: '',
+      webhookUrl: '',
+      interval: 10,
+      isActive: false,
     },
   });
 
   // Update form when config loads
-  if (config && !form.formState.isDirty) {
-    form.reset({
-      alistUrl: config.alistUrl,
-      alistToken: config.alistToken,
-      webhookUrl: config.webhookUrl,
-      interval: config.interval,
-      isActive: config.isActive,
-    });
-  }
+  useEffect(() => {
+    if (config) {
+      form.reset({
+        alistUrl: config.alistUrl || '',
+        alistToken: config.alistToken || '',
+        webhookUrl: config.webhookUrl || '',
+        interval: config.interval || 10,
+        isActive: config.isActive || false,
+      });
+    }
+  }, [config]);
 
   const saveConfigMutation = useMutation({
     mutationFn: api.saveConfig,
@@ -284,6 +286,26 @@ export function ConfigurationPanel() {
               >
                 <Play className="h-4 w-4 mr-2" />
                 {startMonitoringMutation.isPending ? '启动中...' : '开始监控'}
+              </Button>
+            </div>
+            
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">💡 演示模式</h4>
+              <p className="text-xs text-blue-600 mb-3">
+                由于您提供的AList令牌已过期，您可以使用演示模式来体验系统功能
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  form.setValue('alistUrl', 'http://demo.alist.local:5244');
+                  form.setValue('alistToken', 'demo-token');
+                  form.setValue('webhookUrl', 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=b7c69536-956f-441b-b977-36b7084d831c');
+                }}
+                className="text-blue-600 border-blue-300 hover:bg-blue-100"
+              >
+                填充演示配置
               </Button>
             </div>
           </form>

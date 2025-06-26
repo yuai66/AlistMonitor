@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { demoAListStorages, isDemoMode } from '../demo-data';
 
 export interface AListStorage {
   id: number;
@@ -25,6 +26,11 @@ export class AListService {
   }
 
   async getStorages(): Promise<AListStorage[]> {
+    // Check if using demo mode
+    if (isDemoMode(this.token)) {
+      return demoAListStorages;
+    }
+
     try {
       const response = await axios.get<AListResponse>(`${this.baseUrl}/api/admin/storage/list`, {
         headers: {
@@ -34,8 +40,12 @@ export class AListService {
         timeout: 10000
       });
 
+      if (response.data.code === 401) {
+        throw new Error('AList 令牌无效或已过期，请检查令牌是否正确');
+      }
+      
       if (response.data.code !== 200) {
-        throw new Error(`AList API Error: ${response.data.message}`);
+        throw new Error(`AList API 错误 (${response.data.code}): ${response.data.message}`);
       }
 
       return response.data.data || [];
@@ -56,6 +66,11 @@ export class AListService {
   }
 
   async testConnection(): Promise<boolean> {
+    // Demo mode always returns true
+    if (isDemoMode(this.token)) {
+      return true;
+    }
+
     try {
       await this.getStorages();
       return true;

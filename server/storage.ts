@@ -71,12 +71,22 @@ export class MemStorage implements IStorage {
   async saveConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
     const existing = await this.getConfiguration();
     if (existing) {
-      const updated: Configuration = { ...existing, ...insertConfig };
+      const updated: Configuration = { 
+        ...existing, 
+        ...insertConfig,
+        interval: insertConfig.interval ?? existing.interval,
+        isActive: insertConfig.isActive ?? existing.isActive
+      };
       this.configurations.set(existing.id, updated);
       return updated;
     } else {
       const id = this.currentConfigId++;
-      const config: Configuration = { ...insertConfig, id };
+      const config: Configuration = { 
+        ...insertConfig, 
+        id,
+        interval: insertConfig.interval ?? 10,
+        isActive: insertConfig.isActive ?? false
+      };
       this.configurations.set(id, config);
       return config;
     }
@@ -124,7 +134,14 @@ export class MemStorage implements IStorage {
 
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
     const id = this.currentNotificationId++;
-    const notification: Notification = { ...insertNotification, id };
+    const notification: Notification = { 
+      id,
+      title: insertNotification.title,
+      message: insertNotification.message,
+      type: insertNotification.type,
+      status: insertNotification.status || 'pending',
+      createdAt: insertNotification.createdAt
+    };
     this.notifications.set(id, notification);
     return notification;
   }
